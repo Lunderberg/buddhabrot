@@ -3,6 +3,43 @@ Array.prototype.flatten = function() {
     return [].concat.apply([], this);
 };
 
+var Histogram = function(xbins, xmin, xmax,
+                         ybins, ymin, ymax) {
+    this.xbins = xbins;
+    this.xmin = xmin;
+    this.xmax = xmax;
+    this.ybins = ybins;
+    this.ymin = ymin;
+    this.ymax = ymax;
+
+    this.clear();
+};
+
+Histogram.prototype.clear = function() {
+    this.data = Array(this.xbins * this.ybins).fill(0);
+};
+
+Histogram.prototype.fill = function(x,y) {
+    if(x < this.xmin ||
+       x > this.xmax ||
+       y < this.ymin ||
+       y > this.ymax) {
+        return;
+    }
+
+    var i = Math.floor(this.xbins * (x-this.xmin) / (this.xmax - this.xmin));
+    var j = Math.floor(this.ybins * (y-this.ymin) / (this.ymax - this.ymin));
+    var index = j*this.xbins + i;
+
+    this.data[index]++;
+};
+
+Histogram.prototype.normalized = function() {
+    var max = this.data.reduce((a,b) => Math.max(a,b),
+                               0);
+    return this.data.map(x => x/max);
+};
+
 var MandelbrotPoint = function(real, imag) {
     this.orig_real = real;
     this.orig_imag = imag;
@@ -43,13 +80,11 @@ MandelbrotPoint.prototype.go_until = function(max_iter) {
 };
 
 
-var Buddhabrot = function() {
-    // Range and number of points of the
-    var n_points_x = 1000;
+var Buddhabrot = function(n_points_x, n_points_y) {
+    // Range of mandelbrot set.
     var xmin = -2;
     var xmax = +2;
 
-    var n_points_y = 1000;
     var ymin = -2;
     var ymax = +2;
 
@@ -83,66 +118,106 @@ Buddhabrot.prototype.draw = function(canvas) {
     height = canvas.height;
 
     context = canvas.getContext('2d');
-    img_data = context.createImageData(width, height);
 
-    img_data.data.fill(255);
 
-    function get_index(x,y) {
-        var i = Math.floor(width *  (x-xmin) / (xmax-xmin) );
-        var j = Math.floor(height * (y-ymin) / (ymax-ymin) );
+    //img_data.data.fill(255);
 
-        return 4*(j*img_data.width + i);
-    }
+    // function get_index(x,y) {
+    //     var i = Math.floor(width *  (x-xmin) / (xmax-xmin) );
+    //     var j = Math.floor(height * (y-ymin) / (ymax-ymin) );
 
+    //     return 4*(j*img_data.width + i);
+    // }
+
+    var hist = new Histogram(width, xmin, xmax,
+                             height, ymin, ymax);
+    hist.clear();
     this.mandelbrot
         .filter(point => !point.diverged)
-        .map(point => {return {x: point.orig_real,
-                               y: point.orig_imag} })
-        .forEach(point => {
-            var index = get_index(point.x, point.y);
-
-            var color = {r: 0,
-                         g: 0,
-                         b: 0,
-                         a: 255};
-
-            img_data.data[index+0] = color.r;
-            img_data.data[index+1] = color.g;
-            img_data.data[index+2] = color.b;
-            img_data.data[index+3] = color.a;
+        .forEach(function(point) {
+            hist.fill(point.orig_real, point.orig_imag);
         });
-
-    this.mandelbrot
-        .filter(point => !point.diverged)
-        .map(point => {return {x: point.real,
-                               y: point.imag} })
-        .forEach(point => {
-            var index = get_index(point.x, point.y);
-
-            var color = {r: 255,
-                         g: 0,
-                         b: 0,
-                         a: 255};
-
-            img_data.data[index+0] = color.r;
-            img_data.data[index+1] = color.g;
-            img_data.data[index+2] = color.b;
-            img_data.data[index+3] = color.a;
-        });
-
+    var img_data = context.createImageData(width, height);
+    hist.normalized().forEach((val,i) => {
+        img_data.data[4*i+0] = 255*(1-val);
+        img_data.data[4*i+1] = 255*(1-val);
+        img_data.data[4*i+2] = 255*(1-val);
+        img_data.data[4*i+3] = 255;
+    });
     context.putImageData(img_data, 0, 0);
+
+
+
+
+    hist.clear();
+    this.mandelbrot
+        .filter(point => !point.diverged)
+        .forEach(function(point) {
+            hist.fill(point.real, point.imag);
+        });
+    var img_data = context.createImageData(width, height);
+    hist.normalized().forEach((val,i) => {
+        img_data.data[4*i+0] = 255;
+        img_data.data[4*i+1] = 0;
+        img_data.data[4*i+2] = 0;
+        img_data.data[4*i+3] = 255*val;
+    });
+    createImageBitmap(img_data).then(function(bitmap) {
+        context.drawImage(bitmap, 0, 0);
+    });
+    //context.putImageData(img_data, 0, 0);
+
+
+    // this.mandelbrot
+    //     .filter(point => !point.diverged)
+    //     .map(point => {return {x: point.orig_real,
+    //                            y: point.orig_imag} })
+    // n    .forEach(point => {
+    //         var index = get_index(point.x, point.y);
+
+    //         var color = {r: 0,
+    //                      g: 0,
+    //                      b: 0,
+    //                      a: 255};
+
+    //         img_data.data[index+0] = color.r;
+    //         img_data.data[index+1] = color.g;
+    //         img_data.data[index+2] = color.b;
+    //         img_data.data[index+3] = color.a;
+    //     });
+
+    // this.mandelbrot
+    //     .filter(point => !point.diverged)
+    //     .map(point => {return {x: point.real,
+    //                            y: point.imag} })
+    //     .forEach(point => {
+    //         var index = get_index(point.x, point.y);
+
+    //         var color = {r: 255,
+    //                      g: 0,
+    //                      b: 0,
+    //                      a: 255};
+
+    //         img_data.data[index+0] = color.r;
+    //         img_data.data[index+1] = color.g;
+    //         img_data.data[index+2] = color.b;
+    //         img_data.data[index+3] = color.a;
+    //     });
+
+    //context.putImageData(img_data, 0, 0);
 };
 
 var canvas = document.getElementById('buddhabrot-canvas');
-var buddha = new Buddhabrot();
+var buddha = new Buddhabrot(4*canvas.width, 4*canvas.height);
 
 var i = 0;
 function iter() {
     buddha.iterate();
     buddha.draw(canvas);
     i++;
+    console.log(i);
     if(i < 100) {
-        window.setTimeout(iter, 1000);
+        window.setTimeout(iter, 0);
     }
 }
 iter();
