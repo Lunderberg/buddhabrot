@@ -80,33 +80,80 @@ MandelbrotPoint.prototype.go_until = function(max_iter) {
 };
 
 
-var Buddhabrot = function(n_points_x, n_points_y) {
+var Buddhabrot = function(canvas, n_points_x, n_points_y) {
     // Range of mandelbrot set.
-    var xmin = -2;
-    var xmax = +2;
+    this.xmin = -2;
+    this.xmax = +2;
+    this.ymin = -2;
+    this.ymax = +2;
 
-    var ymin = -2;
-    var ymax = +2;
+    this.n_points_x = n_points_x;
+    this.n_points_y = n_points_y;
+
+    this.canvas = canvas;
+    this.reset();
+
+    this.stop_next = false;
+    this.running = false;
+};
+
+Buddhabrot.prototype.start = function() {
+    if(!this.running) {
+        this.running = true;
+        this.callback();
+    }
+};
+
+Buddhabrot.prototype.stop = function() {
+    if(this.running) {
+        this.stop_next = true;
+    }
+};
+
+Buddhabrot.prototype.reset = function() {
+    this.iter_since_redraw = 0;
+    this.num_iterations = 0;
 
     this.mandelbrot =
-        Array(n_points_x)
+        Array(this.n_points_x)
         .fill(null)
         .map( (_,i) =>
-              Array(n_points_y)
+              Array(this.n_points_y)
               .fill(null)
               .map( (_,j) =>
                     new MandelbrotPoint(
-                        xmin + (xmax-xmin)*(i/n_points_x),
-                        ymin + (ymax-ymin)*(j/n_points_y)))).flatten();
+                        this.xmin + (this.xmax-this.xmin)*(i/this.n_points_x),
+                        this.ymin + (this.ymax-this.ymin)*(j/this.n_points_y)))).flatten();
+};
+
+Buddhabrot.prototype.callback = function() {
+    var max_iter = document.getElementById('num-iterations').value;
+    var update_every = document.getElementById('redraw-every').value;
+    var delay = document.getElementById('delay').value;
+
+    if(this.stop_next || this.num_iterations > max_iter) {
+        this.running = false;
+        this.stop_next = false;
+        return;
+    }
+
+    this.iterate();
+    if(this.iter_since_redraw > update_every) {
+        this.draw();
+    }
+
+    window.setTimeout( () => {this.callback();}, delay);
 };
 
 Buddhabrot.prototype.iterate = function() {
     this.mandelbrot.forEach(
         point => point.iterate()
     );
+    this.iter_since_redraw++;
+    this.num_iterations++;
 };
 
-Buddhabrot.prototype.draw = function(canvas) {
+Buddhabrot.prototype.draw = function() {
     // Limits of the view window.
     // Not necessarily those of the iterated points.
     var xmin = -2;
@@ -114,20 +161,11 @@ Buddhabrot.prototype.draw = function(canvas) {
     var ymin = -2;
     var ymax = +2;
 
-    width = canvas.width;
-    height = canvas.height;
+    width = this.canvas.width;
+    height = this.canvas.height;
 
-    context = canvas.getContext('2d');
+    context = this.canvas.getContext('2d');
 
-
-    //img_data.data.fill(255);
-
-    // function get_index(x,y) {
-    //     var i = Math.floor(width *  (x-xmin) / (xmax-xmin) );
-    //     var j = Math.floor(height * (y-ymin) / (ymax-ymin) );
-
-    //     return 4*(j*img_data.width + i);
-    // }
 
     var hist = new Histogram(width, xmin, xmax,
                              height, ymin, ymax);
@@ -147,8 +185,6 @@ Buddhabrot.prototype.draw = function(canvas) {
     context.putImageData(img_data, 0, 0);
 
 
-
-
     hist.clear();
     this.mandelbrot
         .filter(point => !point.diverged)
@@ -165,59 +201,27 @@ Buddhabrot.prototype.draw = function(canvas) {
     createImageBitmap(img_data).then(function(bitmap) {
         context.drawImage(bitmap, 0, 0);
     });
-    //context.putImageData(img_data, 0, 0);
 
 
-    // this.mandelbrot
-    //     .filter(point => !point.diverged)
-    //     .map(point => {return {x: point.orig_real,
-    //                            y: point.orig_imag} })
-    // n    .forEach(point => {
-    //         var index = get_index(point.x, point.y);
-
-    //         var color = {r: 0,
-    //                      g: 0,
-    //                      b: 0,
-    //                      a: 255};
-
-    //         img_data.data[index+0] = color.r;
-    //         img_data.data[index+1] = color.g;
-    //         img_data.data[index+2] = color.b;
-    //         img_data.data[index+3] = color.a;
-    //     });
-
-    // this.mandelbrot
-    //     .filter(point => !point.diverged)
-    //     .map(point => {return {x: point.real,
-    //                            y: point.imag} })
-    //     .forEach(point => {
-    //         var index = get_index(point.x, point.y);
-
-    //         var color = {r: 255,
-    //                      g: 0,
-    //                      b: 0,
-    //                      a: 255};
-
-    //         img_data.data[index+0] = color.r;
-    //         img_data.data[index+1] = color.g;
-    //         img_data.data[index+2] = color.b;
-    //         img_data.data[index+3] = color.a;
-    //     });
-
-    //context.putImageData(img_data, 0, 0);
+    this.iter_since_redraw = 0;
 };
 
 var canvas = document.getElementById('buddhabrot-canvas');
-var buddha = new Buddhabrot(4*canvas.width, 4*canvas.height);
+var buddha = new Buddhabrot(canvas, 4*canvas.width, 4*canvas.height);
+buddha.start();
 
-var i = 0;
-function iter() {
-    buddha.iterate();
-    buddha.draw(canvas);
-    i++;
-    console.log(i);
-    if(i < 100) {
-        window.setTimeout(iter, 0);
-    }
-}
-iter();
+
+document.getElementById('button-start').addEventListener(
+    'click',
+    function() { buddha.start(); }
+);
+
+document.getElementById('button-stop').addEventListener(
+    'click',
+    function() { buddha.stop(); }
+);
+
+document.getElementById('button-reset').addEventListener(
+    'click',
+    function() { buddha.reset(); }
+);

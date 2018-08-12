@@ -1,0 +1,20 @@
+.big-box {
+    border-style: solid;
+    border-width: thin;
+    display: inline-block;
+    float: left;
+}
+
+.big-box-title {
+    font-weight: bold;
+}
+
+.newline {
+    clear: both;
+    float: left;
+}
+
+#buddhabrot-canvas {
+    border: 1px solid black;
+    float: left;
+}

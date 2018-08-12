@@ -3,11 +3,35 @@
 <html>
   <header>
     <title>Buddhabrot Generator</title>
+    <link rel="stylesheet" type="text/css" href="stylesheet.css"></link>
   </header>
 
   <body>
 
-    <canvas id="buddhabrot-canvas" width="600" height="400">Unsupported browser.</canvas>
+    <div class="big-box">
+      <div class="big-box-title">Config</div>
+      <div class="newline">
+        Num iterations:
+        <input type="number" id="num-iterations" value=200></input>
+      </div>
+      <div class="newline">
+        Redraw Every:
+        <input type="number" id="redraw-every" value=1></input>
+      </div>
+      <div class="newline">
+        Pause (ms):
+        <input type="number" id="delay" value=0></input>
+      </div>
+      <div class="newline">
+        <button id="button-start">Start</button>
+        <button id="button-stop">Stop</button>
+        <button id="button-reset">Reset</button>
+      </div>
+    </div>
+
+    <div class="newline">
+         <canvas id="buddhabrot-canvas" width="600" height="600">Unsupported browser.</canvas>
+    </div>
 
   </body>
 
